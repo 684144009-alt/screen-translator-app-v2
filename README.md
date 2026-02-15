@@ -1,1 +1,0 @@
-# screen-translator-app-v2
