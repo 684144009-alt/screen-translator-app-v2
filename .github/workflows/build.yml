@@ -7,31 +7,38 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm install
-      - name: เลือก Xcode 16.1
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app
-      - run: npx expo prebuild --platform ios
-      - name: Build Unsigned App
+        
+      - name: 1. ติดตั้ง Node Modules
+        run: npm install
+
+      - name: 2. เลือก Xcode 16.1 และติดตั้ง CocoaPods
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.1.app
+          # ติดตั้งปลั๊กอินเสริมสำหรับ iOS (สำคัญมาก!)
+          cd ios && pod install && cd ..
+
+      - name: 3. บิลด์แอปแบบ Unsigned (Archive)
         run: |
           cd ios
           WORKSPACE=$(ls | grep .xcworkspace | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          # บังคับข้ามการตรวจสอบลายเซ็นในทุกระดับ (Target, Project, และ Environment)
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos \
-          CODE_SIGNING_ALLOWED=NO \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGN_IDENTITY="" \
+          # ใช้คำสั่ง archive ที่มีความเสถียรสูงกว่า build ธรรมดา
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
+          -configuration Release -sdk iphoneos \
+          -destination "generic/platform=iOS" \
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
           AD_HOC_CODE_SIGNING_ALLOWED=YES \
-          clean build
-      - name: Package to IPA
+          archive -archivePath ../app.xcarchive
+
+      - name: 4. แพ็กไฟล์เป็น IPA
         run: |
           mkdir -p Payload
-          # ใช้คำสั่งหาไฟล์ .app แบบครอบจักรวาล ไม่ว่าจะไปซ่อนอยู่ที่โฟลเดอร์ไหน
-          APP_PATH=$(find . -name "*.app" -type d | grep "Release-iphoneos" | head -1)
-          echo "พบไฟล์แอปที่: $APP_PATH"
-          cp -R "$APP_PATH" Payload/
+          # ดึงไฟล์ .app จากภายในโฟลเดอร์ Archive มาทำ IPA
+          cp -R app.xcarchive/Products/Applications/*.app Payload/
           zip -r app.ipa Payload
-      - uses: actions/upload-artifact@v4
+
+      - name: 5. ส่งไฟล์ออกมาให้ดาวน์โหลด
+        uses: actions/upload-artifact@v4
         with:
           name: ScreenTranslator-IPA
           path: app.ipa
