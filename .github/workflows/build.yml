@@ -8,8 +8,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm install
-      - name: เลือก Xcode 16.1 (เวอร์ชันที่ระบบต้องการ)
-        # สั่งให้เปลี่ยนไปใช้ Xcode 16.1 แทนตัวเริ่มต้น
+      - name: เลือก Xcode 16.1
         run: sudo xcode-select -s /Applications/Xcode_16.1.app
       - run: npx expo prebuild --platform ios
       - name: Build Unsigned App
@@ -17,12 +16,17 @@ jobs:
           cd ios
           WORKSPACE=$(ls | grep .xcworkspace | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          echo "กำลังบิลด์แอปชื่อ: $SCHEME"
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build -derivedDataPath ../build_output
+          # ใช้คำสั่ง build ที่รองรับการข้ามลายเซ็นแบบสมบูรณ์
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos \
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+          AD_HOC_CODE_SIGNING_ALLOWED=YES
       - name: Package to IPA
         run: |
           mkdir -p Payload
-          cp -R build_output/Build/Products/Release-iphoneos/*.app Payload/
+          # ใช้คำสั่งหาไฟล์ .app ในเครื่องทั้งหมดแล้วก๊อปปี้มา เพื่อป้องกัน Error 65
+          APP_PATH=$(find ios/build -name "*.app" -type d | grep "Release-iphoneos" | head -1)
+          echo "พบไฟล์แอปที่: $APP_PATH"
+          cp -R "$APP_PATH" Payload/
           zip -r app.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
