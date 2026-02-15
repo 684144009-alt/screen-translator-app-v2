@@ -2,20 +2,23 @@ name: Build iOS IPA
 on: workflow_dispatch
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm install
       - run: npx expo prebuild --platform ios
-      - run: |
+      - name: Build Unsigned App
+        run: |
           cd ios
           WORKSPACE=$(ls | grep .xcworkspace | head -1)
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{getline; print $1}')
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO archive -archivePath ../app.xcarchive
-          cd ..
-          mkdir Payload
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "กำลังบิลด์แอปชื่อ: $SCHEME"
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO archive -archivePath ../app.xcarchive
+      - name: Package to IPA
+        run: |
+          mkdir -p Payload
           cp -R app.xcarchive/Products/Applications/*.app Payload/
           zip -r app.ipa Payload
       - uses: actions/upload-artifact@v4
