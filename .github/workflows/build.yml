@@ -2,12 +2,15 @@ name: Build iOS IPA
 on: workflow_dispatch
 jobs:
   build:
-    runs-on: macos-14
+    # 🔴 เปลี่ยนเป็น macOS 15 เพื่อให้ได้ Xcode 16+
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm install
+      - name: เลือก Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
       - run: npx expo prebuild --platform ios
       - name: Build Unsigned App
         run: |
@@ -15,12 +18,10 @@ jobs:
           WORKSPACE=$(ls | grep .xcworkspace | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           echo "กำลังบิลด์แอปชื่อ: $SCHEME"
-          # สั่งแค่ Build ไม่สั่ง Archive เพื่อหลบการตรวจลายเซ็นของ Xcode 15+
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build -derivedDataPath ../build_output
       - name: Package to IPA
         run: |
           mkdir -p Payload
-          # ดึงไฟล์ .app ออกมาจากโฟลเดอร์ build_output
           cp -R build_output/Build/Products/Release-iphoneos/*.app Payload/
           zip -r app.ipa Payload
       - uses: actions/upload-artifact@v4
