@@ -11,30 +11,38 @@ jobs:
       - name: 1. ติดตั้ง Node Modules
         run: npm install
 
-      - name: 2. เลือก Xcode 16.1
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app
+      - name: 2. เลือก Xcode 16.1 และตั้งค่า Environment
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.1.app
+          # แก้ไขปัญหา Xcode หา Node ไม่เจอ (หัวใจของ Error 65)
+          mkdir -p ios/internal
+          ln -s $(command -v node) ios/internal/node
+          export NODE_BINARY=$(command -v node)
 
       - name: 3. สร้างโฟลเดอร์ iOS (Prebuild)
-        # ต้องทำขั้นตอนนี้ก่อน เพื่อให้ได้โฟลเดอร์ ios มาครับ
         run: npx expo prebuild --platform ios --no-install
 
       - name: 4. ติดตั้ง CocoaPods
-        # เมื่อมีโฟลเดอร์ ios แล้ว ถึงจะสั่ง pod install ได้
         run: |
           cd ios
           pod install
           cd ..
 
       - name: 5. บิลด์แอปแบบ Unsigned (Archive)
+        # เราเพิ่มคำสั่งข้ามการตรวจสอบที่ละเอียดขึ้น
         run: |
+          export NODE_BINARY=$(command -v node)
           cd ios
           WORKSPACE=$(ls | grep .xcworkspace | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
           -configuration Release -sdk iphoneos \
           -destination "generic/platform=iOS" \
-          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGN_IDENTITY="" \
           AD_HOC_CODE_SIGNING_ALLOWED=YES \
+          COMPILER_INDEX_STORE_ENABLE=NO \
           archive -archivePath ../app.xcarchive
 
       - name: 6. แพ็กไฟล์เป็น IPA
