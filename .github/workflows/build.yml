@@ -2,7 +2,7 @@ name: Build iOS IPA
 on: workflow_dispatch
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,11 +15,13 @@ jobs:
           WORKSPACE=$(ls | grep .xcworkspace | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           echo "กำลังบิลด์แอปชื่อ: $SCHEME"
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO archive -archivePath ../app.xcarchive
+          # สั่งแค่ Build ไม่สั่ง Archive เพื่อหลบการตรวจลายเซ็นของ Xcode 15+
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build -derivedDataPath ../build_output
       - name: Package to IPA
         run: |
           mkdir -p Payload
-          cp -R app.xcarchive/Products/Applications/*.app Payload/
+          # ดึงไฟล์ .app ออกมาจากโฟลเดอร์ build_output
+          cp -R build_output/Build/Products/Release-iphoneos/*.app Payload/
           zip -r app.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
