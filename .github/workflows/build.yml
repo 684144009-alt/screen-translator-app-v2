@@ -2,15 +2,15 @@ name: Build iOS IPA
 on: workflow_dispatch
 jobs:
   build:
-    # 🔴 เปลี่ยนเป็น macOS 15 เพื่อให้ได้ Xcode 16+
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm install
-      - name: เลือก Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.app
+      - name: เลือก Xcode 16.1 (เวอร์ชันที่ระบบต้องการ)
+        # สั่งให้เปลี่ยนไปใช้ Xcode 16.1 แทนตัวเริ่มต้น
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app
       - run: npx expo prebuild --platform ios
       - name: Build Unsigned App
         run: |
